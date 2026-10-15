@@ -69,7 +69,7 @@ export function heuristicCompile(prompt: string, cls: ClassId): { policy: Policy
     greed: 25 + (collect ? 40 : 0) + (explore ? 20 : 0),
   };
   const bits = [
-    aggressive ? 'busca el combate' : cautious ? 'evita riesgos' : 'equilibrado',
+    aggressive ? 'busca el combate' : cautious ? 'evita riesgos' : 'juega equilibrado',
     opportunist ? 'remata a los débiles' : '',
     distance ? 'mantiene la distancia' : '',
     collect ? 'prioriza las mejoras' : '',
