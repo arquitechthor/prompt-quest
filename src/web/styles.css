@@ -129,7 +129,8 @@ body.stage-mode { overflow: hidden; }
 .lb { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .lb li { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: center; }
 .lb li span { grid-column: 2; color: var(--muted); font-size: .78rem; }
-.lb li .avatar { grid-row: span 2; }
+.lb li .avatar { grid-column: 1; grid-row: 1 / span 2; }
+.lb li b { grid-column: 2; }
 .lb .empty { color: var(--muted); display: block; }
 .stage-foot { display: flex; align-items: center; gap: 18px; }
 .qr { width: 104px; height: 104px; background: white; border-radius: 10px; padding: 4px; flex: none; }

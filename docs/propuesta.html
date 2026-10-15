@@ -75,6 +75,21 @@ a { color: var(--violet); }
 .flow li p { color: var(--muted); font-size: 0.88rem; }
 .flow { margin: 0; padding: 0; }
 
+/* pantallas */
+.shot { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.shot img { display: block; width: 100%; height: auto; max-width: 100%; border-radius: 10px; border: 1px solid var(--line); background: #0d111a; cursor: zoom-in; }
+.shot img.phone { aspect-ratio: 0.55; object-fit: cover; object-position: top; border-radius: 18px; }
+.shot img:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
+.shot figcaption { font-size: 0.86rem; color: var(--muted); }
+.shot figcaption b { color: var(--ink); }
+.shot.wide figcaption { font-size: 0.92rem; max-width: 72ch; }
+.shots-phones { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.shots-pair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+dialog.lightbox { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; }
+dialog.lightbox::backdrop { background: rgba(5, 8, 16, 0.86); }
+dialog.lightbox img { display: block; max-width: 96vw; max-height: 90vh; width: auto; height: auto; border-radius: 10px; }
+dialog.lightbox p { color: #e8ecf6; font-size: 0.9rem; margin: 8px auto 0; text-align: center; }
+
 /* compilación */
 .compile { display: grid; grid-template-columns: minmax(0, 0.9fr) auto minmax(0, 1.3fr); gap: 14px; align-items: stretch; }
 .prompt-card, .policy-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
@@ -160,6 +175,9 @@ footer { color: var(--muted); font-size: 0.82rem; }
 @media (max-width: 760px) {
   .hero, .compile, .decisions, .evidence, .compare, .scope { grid-template-columns: minmax(0, 1fr); }
   .flow, .fun, .plan { grid-template-columns: minmax(0, 1fr); }
+  .shots-phones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shots-pair { grid-template-columns: minmax(0, 1fr); }
+  .shots-pair .shot:last-child { max-width: 260px; }
   .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .arrow { transform: rotate(90deg); padding: 6px 0; }
   .arrow span { transform: rotate(-90deg); }
@@ -201,6 +219,29 @@ footer { color: var(--muted); font-size: 0.82rem; }
       <li><h3>Compite</h3><p>Su agente entra en la siguiente ronda de la pantalla grande. En el móvil ve qué regla de su prompt se activa en cada momento.</p></li>
       <li><h3>Mejora</h3><p>Un informe compara lo que pidió con lo que hizo su agente. Cambia una instrucción y vuelve a la arena.</p></li>
     </ol>
+  </section>
+
+  <section class="section" id="pantallas">
+    <header>
+      <div class="eyebrow">El prototipo en pantalla</div>
+      <h2>Así se ve en el stand y en el móvil</h2>
+      <p class="lede">Capturas reales del prototipo durante una sesión de prueba. Pulsa cualquier imagen para ampliarla.</p>
+    </header>
+    <figure class="shot wide">
+      <img src="img/stand-partida.png" width="1370" height="771" alt="Pantalla del stand: mapa de la arena con agentes, feed de decisiones explicadas y clasificación">
+      <figcaption><b>Pantalla del stand, en plena partida.</b> El mapa en directo, el feed que explica cada acción con la regla del prompt que la provocó y la clasificación. Se proyecta en una TV, y el QR invita a unirse.</figcaption>
+    </figure>
+    <div class="shots-phones">
+      <figure class="shot"><img class="phone" src="img/movil-crear.png" width="386" height="836" alt="Móvil: formulario para elegir clase, elemento y escribir la estrategia"><figcaption><b>Diseña.</b> Clase, elemento y estrategia en lenguaje natural, con ejemplos para empezar.</figcaption></figure>
+      <figure class="shot"><img class="phone" src="img/movil-politica.png" width="386" height="836" alt="Móvil: política compilada con sus reglas en orden de prioridad"><figcaption><b>Compila.</b> El asistente ve, regla a regla, cómo ha entendido la máquina su prompt.</figcaption></figure>
+      <figure class="shot"><img class="phone" src="img/movil-directo.png" width="353" height="761" alt="Móvil: partida en directo con el agente resaltado y la regla activa"><figcaption><b>Compite.</b> Sigue a su agente (aro amarillo) y ve la regla que aplica en cada turno.</figcaption></figure>
+      <figure class="shot"><img class="phone" src="img/movil-informe.png" width="353" height="761" alt="Móvil: informe de partida con puesto, lecciones y uso de cada regla"><figcaption><b>Mejora.</b> Puesto, lecciones basadas en hechos y comparación entre lo que pidió y lo que hizo.</figcaption></figure>
+    </div>
+    <div class="shots-pair">
+      <figure class="shot"><img src="img/stand-podio.png" width="1370" height="771" alt="Pantalla del stand al final de la partida: podio y crónica"><figcaption><b>Final de partida.</b> Podio y crónica escrita a partir de los eventos reales de la partida.</figcaption></figure>
+      <figure class="shot"><img class="phone" style="object-position: center bottom" src="img/movil-hackeo.png" width="353" height="761" alt="Móvil: aviso de intento de manipulación detectado"><figcaption><b>Intento de hackeo.</b> Se detecta, se ignora y solo se compila la estrategia legítima.</figcaption></figure>
+    </div>
+    <p class="note">Capturas en modo local: el compilador de respaldo sustituye a Bedrock y los nombres son de ejemplo.</p>
   </section>
 
   <section class="section">
@@ -452,6 +493,8 @@ footer { color: var(--muted); font-size: 0.82rem; }
     <p>Gran final con agentes que razonan en vivo con el LLM, torneos por eliminatorias, Amazon Bedrock Guardrails como capa adicional y un modo taller para formar a equipos internos en diseño y evaluación de agentes. La misma plataforma sirve de escaparate de cómo diseñar sistemas de IA seguros, escalables y baratos.</p>
   </section>
 
+  <dialog class="lightbox" id="lightbox" aria-label="Captura ampliada"><img alt=""><p></p></dialog>
+
   <footer>Rendimiento, equilibrio y tamaños medidos con el prototipo (TypeScript, Node 24). Costes estimados con los supuestos indicados. Prototipo validado en local; el despliegue en AWS está definido y sintetizado con CDK, pendiente de prueba en cuenta.</footer>
 </div>
 
@@ -487,5 +530,20 @@ footer { color: var(--muted); font-size: 0.82rem; }
   }
   draw('balance', balance, 1.5, 1.0, '', 2);
   draw('impact', impact, 15, null, ' %', 1);
+
+  // visor de capturas: clic o Intro abre; clic, Esc o Intro cierran
+  const box = document.getElementById('lightbox');
+  const open = function (img) {
+    box.querySelector('img').src = img.src;
+    box.querySelector('img').alt = img.alt;
+    box.querySelector('p').textContent = img.alt;
+    if (box.showModal) box.showModal();
+  };
+  document.querySelectorAll('.shot img').forEach(function (img) {
+    img.tabIndex = 0;
+    img.addEventListener('click', function () { open(img); });
+    img.addEventListener('keydown', function (e) { if (e.key === 'Enter') open(img); });
+  });
+  box.addEventListener('click', function () { box.close(); });
 })();
 </script>
