@@ -1,0 +1,35 @@
+{
+  "name": "prompt-quest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prompt Quest: Agent Arena - arena de agentes autónomos cuyo comportamiento dicta un prompt",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build:web && tsx src/local/server.ts",
+    "build:web": "node scripts/build-web.mjs",
+    "typecheck": "tsc --noEmit",
+    "sim": "tsx scripts/balance.ts",
+    "test": "tsx scripts/smoke.ts",
+    "cdk": "cdk",
+    "deploy": "npm run build:web && cdk deploy",
+    "destroy": "cdk destroy"
+  },
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "aws-cdk": "^2.1145.0",
+    "aws-cdk-lib": "^2.273.0",
+    "constructs": "^10.8.1",
+    "esbuild": "^0.28.2",
+    "qrcode-generator": "^2.0.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^0.35.0",
+    "@aws-sdk/client-dynamodb": "^3.1152.0",
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/client-sqs": "^3.1152.0",
+    "@aws-sdk/lib-dynamodb": "^3.1152.0"
+  }
+}
