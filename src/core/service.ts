@@ -47,6 +47,8 @@ export interface Deps {
   compiler: PolicyCompiler;
   narrator: Narrator;
   now?: () => number;
+  /** Datos de configuración que se muestran en la consola de administración (modelo, entorno...). */
+  info?: Record<string, string>;
 }
 
 export class ArenaService {
@@ -250,6 +252,54 @@ export class ArenaService {
         strategies: agents.reduce((s, a) => s + a.version, 0),
         bedrockCompiles: state.bedrockCompiles,
       },
+    };
+  }
+
+  // ---------------------------------------------------------------- monitorización (solo administración)
+
+  async monitor() {
+    const [state, agents, recent] = await Promise.all([this.d.store.getState(), this.d.store.listAgents(), this.d.store.listRecentMatches(10)]);
+    const now = this.now();
+    const current = state.currentMatchId ? (recent.find((m) => m.id === state.currentMatchId) ?? (await this.d.store.getMatch(state.currentMatchId))) : null;
+    const phaseOf = (m: MatchRecord) =>
+      now < m.startAt ? 'countdown' : now < m.startAt + m.turns * m.turnMs ? 'playing' : now < m.endsAt ? 'results' : 'finished';
+    const times = agents.map((a) => a.compileMs).filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
+    const pct = (p: number) => (times.length ? times[Math.min(times.length - 1, Math.floor(times.length * p))] : 0);
+    const split = (m: MatchRecord) => ({ humans: m.participants.filter((p) => !p.isBot).length, bots: m.participants.filter((p) => p.isBot).length });
+    return {
+      now,
+      auto: state.auto,
+      config: this.d.info ?? {},
+      counters: {
+        agents: agents.length,
+        ready: agents.filter((a) => a.status === 'ready').length,
+        compiling: agents.filter((a) => a.status === 'compiling').length,
+        errors: agents.filter((a) => a.status === 'error').length,
+        waiting: agents.filter((a) => a.status === 'ready' && a.version > a.lastPlayedVersion).length,
+        strategies: agents.reduce((s, a) => s + a.version, 0),
+        matches: state.matchesPlayed,
+        injectionBlocked: state.injectionBlocked,
+        compileCount: state.compileCount,
+        bedrockCompiles: state.bedrockCompiles,
+        fallbackCompiles: state.fallbackCompiles,
+      },
+      compile: { samples: times.length, p50Ms: pct(0.5), p95Ms: pct(0.95), maxMs: times[times.length - 1] ?? 0 },
+      current: current
+        ? {
+            id: current.id, phase: phaseOf(current), startAt: current.startAt, endsAt: current.endsAt, turns: current.turns, turnMs: current.turnMs,
+            ...split(current), simMs: current.simMs, participants: current.participants.map((p) => p.name),
+            winnerName: phaseOf(current) === 'results' || phaseOf(current) === 'finished' ? current.winnerName : null,
+          }
+        : null,
+      recent: recent.map((m) => ({ id: m.id, createdAt: m.createdAt, winnerName: m.winnerName, ...split(m), turns: m.turns, simMs: m.simMs, narrationSource: m.narrationSource })),
+      agents: agents
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((a) => ({
+          id: a.id, name: a.name, cls: a.cls, el: a.el, status: a.status, version: a.version, prompt: a.prompt,
+          compiledBy: a.policy?.source ?? null, compileMs: a.compileMs ?? null, injectionAttempts: a.injectionAttempts,
+          updatedAt: a.updatedAt, queued: a.status === 'ready' && a.version > a.lastPlayedVersion,
+          stats: statsOf(a.history.filter((h) => h.revealAt <= now)),
+        })),
     };
   }
 

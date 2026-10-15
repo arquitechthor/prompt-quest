@@ -26,7 +26,8 @@ const json = (status: number, data: unknown, cacheSeconds = 0): HttpResponse => 
 
 const safeEq = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-export async function handleHttp(svc: ArenaService, req: HttpRequest, adminKey: string): Promise<HttpResponse> {
+/** adminKey puede ser un valor o una función asíncrona (en AWS se lee de Secrets Manager y se cachea). */
+export async function handleHttp(svc: ArenaService, req: HttpRequest, adminKey: string | (() => Promise<string>)): Promise<HttpResponse> {
   const { method } = req;
   const path = req.path.replace(/\/+$/, '');
   const h = (k: string) => req.headers[k] ?? req.headers[k.toLowerCase()];
@@ -39,9 +40,10 @@ export async function handleHttp(svc: ArenaService, req: HttpRequest, adminKey: 
       return json(400, { error: 'JSON no válido' });
     }
   }
-  const isAdmin = () => {
+  const isAdmin = async () => {
+    const expected = typeof adminKey === 'function' ? await adminKey() : adminKey;
     const k = h('x-admin-key') ?? '';
-    return adminKey.length > 0 && safeEq(k, adminKey);
+    return expected.length > 0 && safeEq(k, expected);
   };
   try {
     let m: RegExpMatchArray | null;
@@ -53,7 +55,8 @@ export async function handleHttp(svc: ArenaService, req: HttpRequest, adminKey: 
     }
     if (method === 'GET' && (m = path.match(/^\/api\/matches\/([A-Za-z0-9-]{4,40})$/))) return json(200, await svc.getMatch(m[1]), 60);
     if (path.startsWith('/api/admin/')) {
-      if (!isAdmin()) return json(401, { error: 'Clave de administración incorrecta' });
+      if (!(await isAdmin())) return json(401, { error: 'Clave de administración incorrecta' });
+      if (method === 'GET' && path === '/api/admin/monitor') return json(200, await svc.monitor());
       if (method === 'POST' && path === '/api/admin/match') return json(200, { match: await svc.startMatch({ allowBotOnly: true }) });
       if (method === 'POST' && path === '/api/admin/auto') return json(200, await svc.setAuto(body.on === true));
       if (method === 'POST' && path === '/api/admin/tick') return json(200, await svc.tick());

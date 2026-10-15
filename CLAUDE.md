@@ -10,12 +10,12 @@ Prompt Quest: Agent Arena — event game where each attendee writes a natural-la
 
 The dev machine has Node 24 + npm only (no admin rights, no AWS CLI, Python or Docker). Everything runs through npm/npx.
 
-- `npm run dev` — builds the web bundle and starts the local server on http://localhost:5173 (stand screen: `/#/arena?admin`, admin key `local-admin`). Uses the heuristic compiler; `COMPILER=bedrock npm run dev` uses Bedrock with local AWS credentials. Local state lives in `.data/` (delete it to reset). The server does not hot-reload: restart after backend/engine changes; frontend changes only need `npm run build:web`.
+- `npm run dev` — builds the web bundle and starts the local server on http://localhost:5173 (public stand screen `/#/arena`, admin console `/#/admin` with key `local-admin`, about page `/como-se-hizo.html`). Uses the heuristic compiler; `COMPILER=bedrock npm run dev` uses Bedrock with local AWS credentials. Local state lives in `.data/` (delete it to reset). The server does not hot-reload: restart after backend/engine changes; frontend changes only need `npm run build:web`.
 - `npm test` — runs `scripts/smoke.ts` (plain `node:assert`, no test framework; there is no way to run a single test other than editing the file).
 - `npm run typecheck` — `tsc --noEmit` over `src`, `infra`, `scripts`. There is no linter.
 - `npm run sim -- 2000` — Monte Carlo balance run: ms/match, normalized win rate per class/element, and win rate per strategy prompt. Rerun after touching `src/engine/rules.ts` or engine logic.
 - `npx tsx scripts/try-bedrock.ts` — compiles example prompts against real Bedrock (needs AWS credentials; `MODEL_ID`, `BEDROCK_REGION` optional).
-- `CDK_DEFAULT_REGION=eu-west-1 npx cdk synth` — synthesizes the stack and bundles Lambdas with local esbuild (no Docker, no credentials needed). `npm run deploy -- -c alertEmail=... -c adminKey=...` deploys; context params are documented in README.md (`modelId`, `bedrockRegion`, `compiler`, `narration`, `budgetUsd`). Deployment without local tooling is done from AWS CloudShell (README).
+- `CDK_DEFAULT_REGION=eu-west-1 npx cdk synth` — synthesizes the stack and bundles Lambdas with local esbuild (no Docker, no credentials needed). `npm run deploy -- -c alertEmail=...` deploys; context params are documented in README.md (`modelId`, `bedrockRegion`, `compiler`, `narration`, `budgetUsd`). Deployment without local tooling is done from AWS CloudShell (README).
 
 ## Architecture
 
@@ -28,7 +28,8 @@ Three layers, hexagonal (ports and adapters), so the same domain runs locally an
 - `src/core/` — domain service (`service.ts`: agents, async compile, matchmaking, match start, tick, arena view), ports (`ports.ts`), transport-agnostic HTTP router (`http.ts`, used by both Lambda and the local server), Bedrock compiler/narrator (`bedrock.ts`, `@anthropic-ai/bedrock-sdk` legacy InvokeModel client → IAM `bedrock:InvokeModel`; default model `anthropic.claude-haiku-5-5`).
 - `src/adapters/` — `local.ts` (JSON file store in `.data/`, in-process queue, heuristic compiler) and `aws.ts` (DynamoDB single-table `pk`/`sk` with GSI `byType`, S3 gzipped replays, SQS).
 - `src/lambda/handlers.ts` — three entry points over one service: `api` (API Gateway HTTP), `compile` (SQS, max concurrency 5), `tick` (EventBridge every minute; loops within the minute while auto mode is on).
-- `src/web/` — vanilla TS + canvas, bundled by `scripts/build-web.mjs` into `dist/web`. Hash routes: `#/` player (phone), `#/arena` stand screen (`?admin` shows controls).
+- `src/web/` — vanilla TS + canvas, bundled by `scripts/build-web.mjs` into `dist/web`. Hash routes: `#/` player (phone), `#/arena` public stand screen (never shows controls), `#/admin` admin console (login; key kept only in `sessionStorage`; polls `GET /api/admin/monitor`). `src/web/como-se-hizo.html` is a standalone static page (general + technical tabs, AWS services detail) copied by the build; keep its service list in sync with `infra/app.ts`.
+- Admin auth: `x-admin-key` header compared in constant time. In AWS the key lives in Secrets Manager (`ADMIN_SECRET_ARN`, read once per container in `handlers.ts`); locally it is `ADMIN_KEY` or `local-admin`.
 
 Key flows and invariants:
 

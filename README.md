@@ -2,7 +2,11 @@
 
 Arena de agentes autónomos cuyo comportamiento lo dicta un prompt. Cada participante escribe una estrategia en lenguaje natural; un LLM en Amazon Bedrock la **compila** a una política estructurada; un motor determinista la ejecuta en partidas de hasta 16 agentes que se ven en directo en una pantalla grande y en los móviles.
 
-> Idea original: [idea/prompt_quest_agent_arena.md](idea/prompt_quest_agent_arena.md)
+> Idea original: [idea/prompt_quest_agent_arena.md](idea/prompt_quest_agent_arena.md) · Propuesta para el evento: [docs/propuesta.html](docs/propuesta.html)
+
+## Desarrollo asistido por IA
+
+Toda la solución de código se ha desarrollado con asistencia de IA. El concepto inicial se redactó con ChatGPT a partir de ideas propias, y el desarrollo completo (motor, backend, web, infraestructura, pruebas y documentación) se hizo con [Claude Code](https://claude.com/claude-code), de Anthropic. La dirección del producto y de la arquitectura fueron humanas: objetivos, restricciones, decisiones de alcance y revisión de resultados. La página `como-se-hizo.html` de la aplicación lo explica fase a fase.
 
 ## Probarlo en local (gratis, sin AWS)
 
@@ -12,7 +16,9 @@ npm run dev
 ```
 
 - Jugador (móvil): http://localhost:5173
-- Pantalla del stand: http://localhost:5173/#/arena?admin (clave `local-admin`; botón **Auto** para encadenar partidas)
+- Pantalla del público (TV del stand, sin controles): http://localhost:5173/#/arena
+- Consola de administración: http://localhost:5173/#/admin (clave en local: `local-admin`). Controla el modo automático, lanza partidas y monitoriza agentes, compilaciones y partidas
+- Cómo se hizo (enlazada con el segundo QR de la pantalla): http://localhost:5173/como-se-hizo.html
 
 En local se usa el compilador heurístico de respaldo. Para usar Bedrock con tus credenciales: `COMPILER=bedrock npm run dev`.
 
@@ -68,9 +74,12 @@ Requisitos: una cuenta de AWS con acceso a Bedrock y al modelo de Anthropic habi
    mkdir prompt-quest && cd prompt-quest && unzip ../prompt-quest.zip
    npm ci
    npx cdk bootstrap          # solo la primera vez por cuenta y región
-   npm run deploy -- -c alertEmail=tu@email.com -c adminKey=una-clave-secreta
+   npm run deploy -- -c alertEmail=tu@email.com
    ```
-4. Los *outputs* muestran la URL pública, la URL de la pantalla del stand y la clave de administración.
+4. Los *outputs* muestran las URL (jugadores, pantalla del público, administración y «Cómo se hizo») y el comando para leer la clave de administración, que se guarda en AWS Secrets Manager y nunca aparece en los *outputs*:
+   ```bash
+   aws secretsmanager get-secret-value --secret-id <nombre-del-secreto> --query SecretString --output text
+   ```
 
 ### Opción B: desde tu equipo
 
@@ -90,7 +99,7 @@ npm run deploy -- -c alertEmail=tu@email.com
 | `bedrockRegion` | región del stack | Región en la que se invoca Bedrock |
 | `compiler` | `bedrock` | `heuristic` para desplegar sin usar el LLM (coste de IA cero) |
 | `narration` | `bedrock` | `template` para desactivar la crónica generada por IA |
-| `adminKey` | aleatoria | Clave para lanzar partidas y activar el modo automático |
+| `adminKey` | generada | Clave de la consola de administración. Si no se indica, Secrets Manager genera una aleatoria (recomendado: si se indica, queda en texto plano en la plantilla) |
 | `alertEmail` / `budgetUsd` | — / 20 | Crea un presupuesto de AWS con alertas al 50, 80 y 100 % |
 
 Para borrarlo todo: `npm run destroy`. No quedan costes fijos: no hay NAT, bases de datos aprovisionadas ni contenedores.

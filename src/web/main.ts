@@ -365,13 +365,16 @@ class ArenaScreen {
   private lastFrame = -1;
   private timer = 0;
   private raf = 0;
-  private admin = location.hash.includes('admin');
 
   start() {
     const joinUrl = `${location.origin}/`;
-    const qr = qrcode(0, 'M');
-    qr.addData(joinUrl);
-    qr.make();
+    const aboutUrl = `${location.origin}/como-se-hizo.html`;
+    const qrSvg = (url: string) => {
+      const qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    };
     app.innerHTML = `
       <main class="stage">
         <header class="stage-head">
@@ -387,25 +390,16 @@ class ArenaScreen {
           </aside>
         </section>
         <footer class="stage-foot">
-          <div class="qr">${qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>
-          <div class="join"><b>Escanea y crea tu agente</b><span>${esc(joinUrl.replace(/^https?:\/\//, ''))}</span><small>Escribe una estrategia en lenguaje natural · una IA la compila · tu agente compite solo</small></div>
-          <div class="arch">Serverless en AWS · CloudFront · API Gateway · Lambda · SQS · Bedrock · DynamoDB · S3 · EventBridge</div>
-          ${this.admin ? `<div class="admin"><input id="ak" placeholder="clave admin" value="${esc(store.get<string>('pq.admin') ?? '')}"><button id="go">▶ Partida</button><button id="auto">Auto</button><span id="am"></span></div>` : ''}
+          <div class="qr-block">
+            <div class="qr">${qrSvg(joinUrl)}</div>
+            <div class="join"><b>Juega: crea tu agente</b><span>${esc(joinUrl.replace(/^https?:\/\//, ''))}</span><small>Escribe una estrategia · una IA la compila · tu agente compite solo</small></div>
+          </div>
+          <div class="qr-block">
+            <div class="qr">${qrSvg(aboutUrl)}</div>
+            <div class="join"><b>¿Cómo se hizo?</b><span class="about">Arquitectura, IA y AWS</span><small>Para curiosos y para perfiles técnicos: servicios, seguridad y aprendizajes</small></div>
+          </div>
         </footer>
       </main>`;
-    if (this.admin) {
-      const call = async (path: string, body?: unknown) => {
-        const key = $<HTMLInputElement>('#ak').value;
-        store.set('pq.admin', key);
-        try {
-          await api(path, { method: 'POST', headers: { 'x-admin-key': key }, body: JSON.stringify(body ?? {}) });
-          $('#am').textContent = 'OK';
-          this.poll();
-        } catch (e) { $('#am').textContent = (e as Error).message; }
-      };
-      $('#go').onclick = () => call('/api/admin/match');
-      $('#auto').onclick = () => call('/api/admin/auto', { on: !this.arena?.auto });
-    }
     window.addEventListener('resize', () => this.renderer?.resize());
     this.poll();
     this.timer = window.setInterval(() => this.poll(), 2000);
@@ -425,8 +419,7 @@ class ArenaScreen {
       <span class="chip-s">🤖 <b>${a.stats.agents}</b> agentes</span>
       <span class="chip-s">✍️ <b>${a.stats.strategies}</b> estrategias</span>
       <span class="chip-s">⚔️ <b>${a.stats.matches}</b> partidas</span>
-      <span class="chip-s">🛡️ <b>${a.stats.injectionBlocked}</b> intentos de hackeo bloqueados</span>
-      ${this.admin ? `<span class="chip-s">${a.auto ? '🟢 auto' : '⚪ manual'}</span>` : ''}`;
+      <span class="chip-s">🛡️ <b>${a.stats.injectionBlocked}</b> intentos de hackeo bloqueados</span>`;
     $('#lb').innerHTML = a.leaderboard.length
       ? a.leaderboard.map((l) => `<li>${avatar(l.cls, l.el, 26)}<b>${esc(l.name)}</b><span>${l.wins}🏆 · mejor ${l.bestPlace}º · v${l.versions}</span></li>`).join('')
       : '<li class="empty">Aún no hay clasificación. ¡Sé el primero!</li>';
@@ -487,14 +480,235 @@ class ArenaScreen {
   };
 }
 
+// ----------------------------------------------------------------------------- administración
+
+interface MonitorView {
+  now: number;
+  auto: boolean;
+  config: Record<string, string>;
+  counters: { agents: number; ready: number; compiling: number; errors: number; waiting: number; strategies: number; matches: number; injectionBlocked: number; compileCount: number; bedrockCompiles: number; fallbackCompiles: number };
+  compile: { samples: number; p50Ms: number; p95Ms: number; maxMs: number };
+  current: { id: string; phase: 'countdown' | 'playing' | 'results' | 'finished'; startAt: number; endsAt: number; turns: number; turnMs: number; humans: number; bots: number; simMs: number; participants: string[]; winnerName: string | null } | null;
+  recent: { id: string; createdAt: number; winnerName: string | null; humans: number; bots: number; turns: number; simMs: number; narrationSource: string }[];
+  agents: { id: string; name: string; cls: ClassId; el: ElementId; status: string; version: number; prompt: string; compiledBy: string | null; compileMs: number | null; injectionAttempts: number; updatedAt: number; queued: boolean; stats: { matches: number; wins: number; bestPlace: number } }[];
+}
+
+/** La clave de administración vive solo en sessionStorage: se borra al cerrar la pestaña y nunca se muestra. */
+const adminSession = {
+  get(): string | null { try { return sessionStorage.getItem('pq.adminKey'); } catch { return null; } },
+  set(v: string) { try { sessionStorage.setItem('pq.adminKey', v); } catch { /* sin almacenamiento: habrá que volver a entrar */ } },
+  del() { try { sessionStorage.removeItem('pq.adminKey'); } catch { /* */ } },
+};
+
+const ago = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`;
+};
+const fmtMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms)} ms`);
+
+class AdminScreen {
+  private key = adminSession.get();
+  private timer = 0;
+  private data: MonitorView | null = null;
+  private offset = 0;
+
+  start() {
+    if (this.key) this.renderDashboard();
+    else this.renderLogin();
+  }
+  stop() {
+    clearInterval(this.timer);
+  }
+
+  private call<T>(path: string, init?: RequestInit) {
+    return api<T>(path, { ...init, headers: { 'x-admin-key': this.key ?? '', ...(init?.headers ?? {}) } });
+  }
+
+  private renderLogin(message = '') {
+    clearInterval(this.timer);
+    app.innerHTML = `
+      <main class="admin-login">
+        <form id="login" class="login-card" autocomplete="on">
+          <div><span class="logo">PROMPT QUEST</span><span class="tag">Administración</span></div>
+          <h1>Acceso del equipo del stand</h1>
+          <label class="fld" for="ak"><span>Clave de administración</span>
+            <input id="ak" name="password" type="password" autocomplete="current-password" required></label>
+          <p class="err" id="err">${esc(message)}</p>
+          <button class="cta" type="submit">Entrar</button>
+          <small class="hint">La clave solo se guarda en esta pestaña y se borra al cerrarla. En AWS se consulta en Secrets Manager.</small>
+        </form>
+      </main>`;
+    const input = $<HTMLInputElement>('#ak');
+    input.focus();
+    $<HTMLFormElement>('#login').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const btn = $<HTMLButtonElement>('#login .cta');
+      btn.disabled = true;
+      this.key = input.value;
+      try {
+        await this.call('/api/admin/monitor');
+        adminSession.set(this.key);
+        this.renderDashboard();
+      } catch (e) {
+        this.key = null;
+        input.value = '';
+        btn.disabled = false;
+        $('#err').textContent = (e as Error).message;
+        input.focus();
+      }
+    });
+  }
+
+  private renderDashboard() {
+    app.innerHTML = `
+      <main class="admin">
+        <header class="admin-head">
+          <div><span class="logo">PROMPT QUEST</span><span class="tag">Administración</span></div>
+          <nav>
+            <a href="/#/arena" target="_blank" rel="noopener">Pantalla del público ↗</a>
+            <a href="/como-se-hizo.html" target="_blank" rel="noopener">Cómo se hizo ↗</a>
+            <button class="btn-s" id="logout">Salir</button>
+          </nav>
+        </header>
+        <section class="admin-top">
+          <div class="panel control">
+            <h3>Control del stand</h3>
+            <div class="mode-row"><span>Modo automático</span><span class="state-pill" id="mode-pill">…</span></div>
+            <div class="seg" role="group" aria-label="Modo automático">
+              <button id="auto-on" type="button">Activar</button>
+              <button id="auto-off" type="button">Desactivar</button>
+            </div>
+            <button class="cta" id="launch" type="button">▶ Lanzar partida ahora</button>
+            <p class="hint">Con el modo automático, cada partida empieza al terminar la anterior (unos 45 s). Al desactivarlo, la partida en curso termina con normalidad.</p>
+          </div>
+          <div class="panel" id="current"></div>
+          <div class="panel" id="config"></div>
+        </section>
+        <section class="admin-kpis" id="kpis"></section>
+        <section class="panel"><h3>Agentes <small id="agents-count"></small></h3><div class="table-scroll"><table class="admin-table" id="agents"></table></div></section>
+        <section class="panel"><h3>Últimas partidas</h3><div class="table-scroll"><table class="admin-table" id="matches"></table></div></section>
+        <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+      </main>`;
+    $('#logout').onclick = () => {
+      adminSession.del();
+      this.key = null;
+      this.renderLogin('Sesión cerrada.');
+    };
+    const act = async (path: string, body: unknown, ok: string) => {
+      try {
+        await this.call(path, { method: 'POST', body: JSON.stringify(body) });
+        this.toast(ok);
+        await this.poll();
+      } catch (e) {
+        this.toast((e as Error).message, true);
+      }
+    };
+    $('#auto-on').onclick = () => act('/api/admin/auto', { on: true }, 'Modo automático activado');
+    $('#auto-off').onclick = () => act('/api/admin/auto', { on: false }, 'Modo automático desactivado');
+    $('#launch').onclick = () => act('/api/admin/match', {}, 'Partida lanzada: empieza en unos segundos');
+    this.poll();
+    this.timer = window.setInterval(() => this.poll(), 3000);
+  }
+
+  private toast(text: string, error = false) {
+    const t = $('#toast');
+    if (!t) return;
+    t.textContent = text;
+    t.className = `toast${error ? ' error' : ''}`;
+    t.hidden = false;
+    clearTimeout(Number(t.dataset.timer));
+    t.dataset.timer = String(window.setTimeout(() => (t.hidden = true), 3500));
+  }
+
+  private async poll() {
+    try {
+      this.data = await this.call<MonitorView>('/api/admin/monitor');
+      this.offset = this.data.now - Date.now();
+      this.paint();
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (/clave/i.test(msg)) {
+        adminSession.del();
+        this.key = null;
+        this.renderLogin('La clave ha cambiado o la sesión ha caducado.');
+      } else this.toast(`Sin conexión con el servidor: ${msg}`, true);
+    }
+  }
+
+  private paint() {
+    const d = this.data!;
+    const t = Date.now() + this.offset;
+    const pill = $('#mode-pill');
+    pill.textContent = d.auto ? 'Activado' : 'Desactivado';
+    pill.className = `state-pill ${d.auto ? 'on' : 'off'}`;
+    $('#auto-on').classList.toggle('active', d.auto);
+    $('#auto-off').classList.toggle('active', !d.auto);
+    $<HTMLButtonElement>('#auto-on').disabled = d.auto;
+    $<HTMLButtonElement>('#auto-off').disabled = !d.auto;
+
+    const c = d.current;
+    const phase = c
+      ? {
+          countdown: `Cuenta atrás · empieza en ${Math.max(0, Math.ceil((c.startAt - t) / 1000))} s`,
+          playing: `En juego · turno ${Math.min(c.turns, Math.max(1, Math.floor((t - c.startAt) / c.turnMs) + 1))} de ${c.turns}`,
+          results: 'Mostrando el podio',
+          finished: 'Terminada',
+        }[c.phase]
+      : 'Sin partidas todavía';
+    $('#current').innerHTML = `
+      <h3>Partida actual</h3>
+      <p class="phase phase-${c?.phase ?? 'none'}">${esc(phase)}</p>
+      ${c ? `<dl class="kv">
+        <dt>Partida</dt><dd class="mono">${esc(c.id)}</dd>
+        <dt>Jugadores</dt><dd>${c.humans} humanos + ${c.bots} bots</dd>
+        <dt>Simulación</dt><dd>${c.simMs} ms · ${c.turns} turnos</dd>
+        <dt>Termina</dt><dd>${c.endsAt > t ? `en ${Math.ceil((c.endsAt - t) / 1000)} s` : ago(t - c.endsAt)}</dd>
+        ${c.winnerName ? `<dt>Ganador</dt><dd>🏆 ${esc(c.winnerName)}</dd>` : ''}
+      </dl>` : ''}`;
+    $('#config').innerHTML = `<h3>Configuración</h3><dl class="kv">${Object.entries(d.config).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+
+    const k = d.counters;
+    const kpi = (v: string | number, label: string, warn = false) => `<div class="kpi-a${warn ? ' warn' : ''}"><b>${v}</b><span>${label}</span></div>`;
+    $('#kpis').innerHTML = [
+      kpi(k.agents, 'agentes'),
+      kpi(k.waiting, 'en cola'),
+      kpi(k.compiling, 'compilando', k.compiling > 5),
+      kpi(k.strategies, 'estrategias'),
+      kpi(k.matches, 'partidas'),
+      kpi(k.injectionBlocked, 'hackeos bloqueados'),
+      kpi(`${k.bedrockCompiles} / ${k.fallbackCompiles}`, 'compilaciones IA / respaldo', k.fallbackCompiles > 0 && d.config.Compilador === 'Amazon Bedrock'),
+      kpi(d.compile.samples ? `${fmtMs(d.compile.p50Ms)} · ${fmtMs(d.compile.p95Ms)}` : '—', 'compilación p50 · p95'),
+    ].join('');
+
+    $('#agents-count').textContent = `(${d.agents.length})`;
+    const status = (a: MonitorView['agents'][number]) =>
+      a.status === 'compiling' ? '<span class="tag-s amber">compilando</span>' : a.status === 'error' ? '<span class="tag-s red">error</span>' : a.queued ? '<span class="tag-s blue">en cola</span>' : '<span class="tag-s green">listo</span>';
+    $('#agents').innerHTML = `
+      <thead><tr><th>Agente</th><th>Estado</th><th class="num">Versión</th><th class="num">Partidas</th><th class="num">Victorias</th><th class="num">Mejor</th><th>Compilado</th><th>Hackeo</th><th>Actualizado</th></tr></thead>
+      <tbody>${d.agents.length ? d.agents.map((a) => `<tr>
+        <td><div class="who">${avatar(a.cls, a.el, 26)}<div><b>${esc(a.name)}</b><small title="${esc(a.prompt)}">${esc(a.prompt)}</small></div></div></td>
+        <td>${status(a)}</td>
+        <td class="num">v${a.version}</td><td class="num">${a.stats.matches}</td><td class="num">${a.stats.wins}</td><td class="num">${a.stats.bestPlace ? `${a.stats.bestPlace}º` : '—'}</td>
+        <td>${a.compiledBy ? `${a.compiledBy === 'bedrock' ? 'IA' : 'respaldo'}${a.compileMs !== null ? ` · ${fmtMs(a.compileMs)}` : ''}` : '—'}</td>
+        <td>${a.injectionAttempts ? `🛡️ ${a.injectionAttempts}` : '—'}</td>
+        <td>${ago(t - a.updatedAt)}</td></tr>`).join('') : '<tr><td colspan="9" class="empty">Todavía no hay agentes. Comparte el QR de la pantalla del público.</td></tr>'}</tbody>`;
+    $('#matches').innerHTML = `
+      <thead><tr><th>Partida</th><th>Inicio</th><th>Ganador</th><th class="num">Jugadores</th><th class="num">Turnos</th><th class="num">Simulación</th><th>Crónica</th></tr></thead>
+      <tbody>${d.recent.length ? d.recent.map((m) => `<tr>
+        <td class="mono">${esc(m.id)}</td><td>${ago(t - m.createdAt)}</td><td>${m.id === c?.id && !c.winnerName ? '<span class="muted">en curso</span>' : esc(m.winnerName ?? '—')}</td>
+        <td class="num">${m.humans} + ${m.bots}🤖</td><td class="num">${m.turns}</td><td class="num">${m.simMs} ms</td><td>${m.narrationSource === 'bedrock' ? 'IA' : 'plantilla'}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">Sin partidas todavía.</td></tr>'}</tbody>`;
+  }
+}
+
 // ----------------------------------------------------------------------------- enrutado
 
 let current: { stop(): void } | null = null;
 function route() {
   current?.stop();
   const h = location.hash;
-  document.body.className = h.startsWith('#/arena') ? 'stage-mode' : 'phone-mode';
-  const s = h.startsWith('#/arena') ? new ArenaScreen() : new PlayerScreen();
+  const mode = h.startsWith('#/arena') ? 'stage' : h.startsWith('#/admin') ? 'admin' : 'phone';
+  document.body.className = `${mode}-mode`;
+  const s = mode === 'stage' ? new ArenaScreen() : mode === 'admin' ? new AdminScreen() : new PlayerScreen();
   current = s;
   s.start();
 }

@@ -15,3 +15,4 @@ await build({
 });
 copyFileSync('src/web/index.html', 'dist/web/index.html');
 copyFileSync('src/web/styles.css', 'dist/web/styles.css');
+copyFileSync('src/web/como-se-hizo.html', 'dist/web/como-se-hizo.html');
