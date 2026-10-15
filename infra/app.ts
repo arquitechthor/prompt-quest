@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cdk from 'aws-cdk-lib';
@@ -18,6 +17,7 @@ import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 /**
@@ -36,7 +36,7 @@ class PromptQuestStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: cdk.StackProps) {
     super(scope, id, props);
     const ctx = (k: string, d?: string) => (this.node.tryGetContext(k) as string | undefined) ?? process.env[k.toUpperCase()] ?? d;
-    const adminKey = ctx('adminKey') ?? randomBytes(9).toString('base64url');
+    const adminKeyCtx = ctx('adminKey'); // opcional: si no se indica, Secrets Manager genera una clave aleatoria
     const modelId = ctx('modelId', 'anthropic.claude-haiku-5-5')!;
     const bedrockRegion = ctx('bedrockRegion', this.region)!;
     const alertEmail = ctx('alertEmail');
@@ -82,7 +82,6 @@ class PromptQuestStack extends cdk.Stack {
         TABLE: table.tableName,
         DATA_BUCKET: dataBucket.bucketName,
         QUEUE_URL: queue.queueUrl,
-        ADMIN_KEY: adminKey,
         MODEL_ID: modelId,
         BEDROCK_REGION: bedrockRegion,
         COMPILER: ctx('compiler', 'bedrock')!,
@@ -99,6 +98,17 @@ class PromptQuestStack extends cdk.Stack {
     table.grantReadWriteData(tickFn);
     queue.grantSendMessages(apiFn);
     dataBucket.grantPut(apiFn);
+
+    // clave de administración: solo la Lambda api puede leerla; nunca aparece en outputs ni variables de entorno
+    const adminSecret = new secretsmanager.Secret(this, 'AdminKey', {
+      description: 'Clave de la consola de administración de Prompt Quest',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...(adminKeyCtx
+        ? { secretStringValue: cdk.SecretValue.unsafePlainText(adminKeyCtx) }
+        : { generateSecretString: { passwordLength: 24, excludePunctuation: true } }),
+    });
+    adminSecret.grantRead(apiFn);
+    apiFn.addEnvironment('ADMIN_SECRET_ARN', adminSecret.secretArn);
     dataBucket.grantPut(tickFn);
     const bedrock = new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel'],
@@ -171,8 +181,13 @@ class PromptQuestStack extends cdk.Stack {
     }
 
     new cdk.CfnOutput(this, 'Url', { value: `https://${dist.distributionDomainName}` });
-    new cdk.CfnOutput(this, 'StandScreen', { value: `https://${dist.distributionDomainName}/#/arena?admin` });
-    new cdk.CfnOutput(this, 'AdminKey', { value: adminKey });
+    new cdk.CfnOutput(this, 'PublicScreen', { value: `https://${dist.distributionDomainName}/#/arena` });
+    new cdk.CfnOutput(this, 'AdminConsole', { value: `https://${dist.distributionDomainName}/#/admin` });
+    new cdk.CfnOutput(this, 'HowItWasMade', { value: `https://${dist.distributionDomainName}/como-se-hizo.html` });
+    new cdk.CfnOutput(this, 'AdminKeyCommand', {
+      description: 'Comando para leer la clave de administración (CloudShell)',
+      value: `aws secretsmanager get-secret-value --secret-id ${adminSecret.secretName} --query SecretString --output text`,
+    });
     new cdk.CfnOutput(this, 'Model', { value: `${modelId} @ ${bedrockRegion}` });
   }
 }

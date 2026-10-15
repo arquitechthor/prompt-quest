@@ -195,7 +195,7 @@ footer { color: var(--muted); font-size: 0.82rem; }
       <div class="eyebrow">Propuesta para el evento · Área de Microservicios</div>
       <h1 class="title" style="margin-top:14px">Prompt Quest<span>AGENT ARENA</span></h1>
       <p class="tagline">Cada asistente escribe una estrategia en lenguaje natural. Una IA en AWS la convierte en el cerebro de un agente autónomo, que compite solo contra los demás en una arena proyectada en directo.</p>
-      <p class="byline">Héctor Guzmán · idea, arquitectura y prototipo</p>
+      <p class="byline">Héctor Guzmán · idea, arquitectura y prototipo desarrollado con asistencia de IA · <a href="https://github.com/arquitechthor/prompt-quest">código en GitHub</a></p>
       <div class="status"><i></i>Prototipo funcional: motor, IA de compilación, web móvil, pantalla del stand e infraestructura como código</div>
     </div>
     <div class="facts">
@@ -278,7 +278,7 @@ footer { color: var(--muted); font-size: 0.82rem; }
     <header>
       <div class="eyebrow">Arquitectura en AWS</div>
       <h2>Serverless, orientada a eventos y sin costes fijos</h2>
-      <p class="lede">Siete servicios gestionados desplegados con un solo comando (AWS CDK). El mismo código de dominio corre en local, sin coste, gracias a una arquitectura hexagonal de puertos y adaptadores.</p>
+      <p class="lede">Doce servicios gestionados de AWS desplegados con un solo comando (AWS CDK): CloudFront, S3, API Gateway, Lambda, SQS, DynamoDB, Bedrock, EventBridge, Secrets Manager, IAM, CloudWatch y Budgets. El mismo código de dominio corre en local, sin coste, gracias a una arquitectura hexagonal de puertos y adaptadores.</p>
     </header>
     <figure class="diagram" style="margin:0">
       <svg viewBox="0 0 920 440" role="img" aria-label="Diagrama: los clientes acceden por CloudFront a S3 y a API Gateway; la Lambda api usa DynamoDB y encola compilaciones en SQS; la Lambda compile llama a Bedrock; EventBridge dispara la Lambda tick, que simula partidas, guarda replays en S3 y pide la crónica a Bedrock.">
@@ -341,7 +341,7 @@ footer { color: var(--muted); font-size: 0.82rem; }
       </div>
       <div class="decision">
         <h3>El prompt es dato no confiable</h3>
-        <p>La estrategia va delimitada, la salida se restringe con JSON Schema y el servidor vuelve a validar y acotar cada campo. Los tokens de edición se guardan con hash, el permiso IAM es mínimo y hay límites de longitud, de versiones y de peticiones.</p>
+        <p>La estrategia va delimitada, la salida se restringe con JSON Schema y el servidor vuelve a validar y acotar cada campo. Los tokens de edición se guardan con hash, la clave de administración vive en Secrets Manager, el permiso IAM es mínimo y hay límites de longitud, de versiones y de peticiones.</p>
         <p class="why">Defensa en profundidad frente a la inyección de prompts.</p>
       </div>
       <div class="decision">
@@ -439,6 +439,8 @@ footer { color: var(--muted); font-size: 0.82rem; }
           <li>Compilador con Bedrock (salida estructurada) y compilador de respaldo</li>
           <li>Web móvil: crear, ver la política, seguir la partida, informe y mejora</li>
           <li>Pantalla del stand: mapa animado, feed explicado, clasificación, QR y crónica</li>
+          <li>Consola de administración separada de la pantalla pública: control del modo automático y monitorización de agentes, compilaciones y partidas</li>
+          <li>Página «Cómo se hizo», enlazada desde un segundo QR, con una vista para todos los públicos y otra técnica que detalla cada servicio de AWS</li>
           <li>Infraestructura completa en CDK y pruebas automáticas</li>
         </ul>
       </div>
@@ -486,6 +488,25 @@ footer { color: var(--muted); font-size: 0.82rem; }
       <div><h3>Semana 2</h3><ul><li>Pulido visual y sonido en la pantalla</li><li>Prueba de carga simulando 300 móviles</li><li>Ensayo con 10-20 compañeros</li></ul></div>
       <div><h3>Día del evento</h3><ul><li>Una pantalla o TV y un portátil para la arena</li><li>Cartel con QR y guion de 30 s para el stand</li><li>Una persona en el stand; modo de respaldo preparado</li></ul></div>
     </div>
+  </section>
+
+  <section class="section">
+    <header>
+      <div class="eyebrow">Cómo se construyó</div>
+      <h2>Desarrollado con IA, dirigido como arquitecto</h2>
+      <p class="lede">Toda la solución de código se ha desarrollado con asistencia de IA: el concepto inicial con ChatGPT y el desarrollo completo con Claude Code (Anthropic). Del documento de la idea al prototipo funcional, en una sola jornada de trabajo.</p>
+    </header>
+    <div class="decisions">
+      <div class="decision">
+        <h3>El papel de la IA</h3>
+        <p>Criticó la idea y propuso la arquitectura, escribió unas 4.500 líneas de código (motor, backend, web e infraestructura) y lo verificó con pruebas automáticas, 2.000 partidas simuladas y pruebas en un navegador real.</p>
+      </div>
+      <div class="decision">
+        <h3>El papel del arquitecto</h3>
+        <p>Marcó los objetivos y las restricciones (coste, diversión, sin permisos de administrador), decidió qué se recortaba y qué riesgos se aceptaban, y revisó los resultados y el producto. La IA acelera la ejecución; el criterio y la responsabilidad siguen siendo humanos.</p>
+      </div>
+    </div>
+    <p class="note">Esto conecta con el mensaje del evento: el propio stand es una muestra de cómo se construye software hoy con IA. La página «Cómo se hizo», enlazada desde la pantalla, lo cuenta fase a fase. El código es público en <a href="https://github.com/arquitechthor/prompt-quest">github.com/arquitechthor/prompt-quest</a>.</p>
   </section>
 
   <section class="closing">

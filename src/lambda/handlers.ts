@@ -1,3 +1,4 @@
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DynamoStore, S3ReplayStore, SqsQueue } from '../adapters/aws';
 import { HeuristicCompiler } from '../adapters/local';
 import { BedrockCompiler } from '../core/bedrock';
@@ -19,7 +20,27 @@ const svc = new ArenaService({
   queue: new SqsQueue(env('QUEUE_URL')),
   compiler: ai,
   narrator: env('NARRATION', 'bedrock') === 'bedrock' ? ai : new HeuristicCompiler(0),
+  info: {
+    Entorno: `AWS Lambda · ${env('AWS_REGION')}`,
+    Compilador: useBedrock ? 'Amazon Bedrock' : 'heurístico',
+    Modelo: useBedrock ? env('MODEL_ID', 'anthropic.claude-haiku-5-5') : '—',
+    'Región de Bedrock': useBedrock ? env('BEDROCK_REGION', env('AWS_REGION')) : '—',
+    Crónica: env('NARRATION', 'bedrock') === 'bedrock' ? 'Amazon Bedrock' : 'plantilla',
+  },
 });
+
+// La clave de administración vive en Secrets Manager: se lee una vez por contenedor y se cachea.
+let adminKeyCache: Promise<string> | null = null;
+const adminKey = () =>
+  (adminKeyCache ??= env('ADMIN_SECRET_ARN')
+    ? new SecretsManagerClient({})
+        .send(new GetSecretValueCommand({ SecretId: env('ADMIN_SECRET_ARN') }))
+        .then((r) => r.SecretString ?? '')
+        .catch((e) => {
+          adminKeyCache = null;
+          throw e;
+        })
+    : Promise.resolve(env('ADMIN_KEY')));
 
 interface ApiEvent {
   rawPath: string;
@@ -31,7 +52,7 @@ interface ApiEvent {
 
 export async function api(event: ApiEvent) {
   const body = event.body ? (event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body) : null;
-  const res = await handleHttp(svc, { method: event.requestContext.http.method, path: event.rawPath, headers: event.headers ?? {}, body }, env('ADMIN_KEY'));
+  const res = await handleHttp(svc, { method: event.requestContext.http.method, path: event.rawPath, headers: event.headers ?? {}, body }, adminKey);
   return { statusCode: res.status, headers: res.headers, body: res.body };
 }
 

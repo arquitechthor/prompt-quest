@@ -21,7 +21,16 @@ const ai =
   process.env.COMPILER === 'bedrock'
     ? new BedrockCompiler({ region: process.env.BEDROCK_REGION ?? process.env.AWS_REGION ?? 'eu-west-1', modelId: process.env.MODEL_ID ?? 'anthropic.claude-haiku-5-5' })
     : new HeuristicCompiler();
-const svc = new ArenaService({ store: new FileStore(DATA), replays: new FileReplayStore(join(DATA, 'replays')), queue, compiler: ai, narrator: ai });
+const useBedrock = process.env.COMPILER === 'bedrock';
+const svc = new ArenaService({
+  store: new FileStore(DATA), replays: new FileReplayStore(join(DATA, 'replays')), queue, compiler: ai, narrator: ai,
+  info: {
+    Entorno: 'local (ficheros en .data/)',
+    Compilador: useBedrock ? 'Amazon Bedrock' : 'heurístico',
+    Modelo: useBedrock ? (process.env.MODEL_ID ?? 'anthropic.claude-haiku-5-5') : '—',
+    Crónica: useBedrock ? 'Amazon Bedrock' : 'plantilla',
+  },
+});
 queue.handler = (id, v) => svc.processCompile(id, v);
 
 // En AWS esto lo hace EventBridge cada minuto; en local, cada 3 s.
@@ -46,6 +55,8 @@ createServer(async (req, res) => {
   createReadStream(file).pipe(res);
 }).listen(PORT, () => {
   console.log(`\n  Prompt Quest en http://localhost:${PORT}`);
-  console.log(`  Pantalla del stand: http://localhost:${PORT}/#/arena   (clave admin: ${ADMIN_KEY})`);
+  console.log(`  Pantalla del público: http://localhost:${PORT}/#/arena`);
+  console.log(`  Administración:       http://localhost:${PORT}/#/admin   (clave en local: ${ADMIN_KEY})`);
+  console.log(`  Cómo se hizo:         http://localhost:${PORT}/como-se-hizo.html`);
   console.log(`  Compilador: ${process.env.COMPILER === 'bedrock' ? 'Amazon Bedrock' : 'heurístico local (sin coste)'}\n`);
 });
