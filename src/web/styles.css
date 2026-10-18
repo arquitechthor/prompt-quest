@@ -65,6 +65,9 @@ blockquote { margin: 16px 0 0; padding: 12px 14px; border-left: 3px solid var(--
 .ph { display: flex; gap: 12px; align-items: center; }
 .ph h2 { margin: 0; }
 .ph small { color: var(--muted); }
+.report-agent { margin-bottom: 12px; }
+.report-agent h2 { overflow-wrap: anywhere; }
+.place small b { color: var(--text); }
 .summary { font-size: 1.05rem; margin: 12px 0; }
 .traits { display: grid; gap: 6px; margin-bottom: 14px; }
 .traits div { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); }
@@ -186,6 +189,14 @@ body.admin-mode { background: var(--bg); }
 .seg button.active { background: #2b2450; color: var(--text); }
 .seg button:disabled { cursor: default; }
 .seg button:not(:disabled):hover { color: var(--text); }
+.danger { border-color: #7a2b3a; }
+.danger h3 { color: var(--bad); }
+.danger .hint { margin: 0 0 12px; max-width: 70ch; }
+.danger-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.danger-row .fld { margin: 0; flex: 1 1 220px; max-width: 320px; }
+.btn-danger { background: #3b1219; color: var(--bad); border: 1px solid #7a2b3a; border-radius: 10px; padding: 12px 18px; font-weight: 800; }
+.btn-danger:not(:disabled):hover { background: #561a25; }
+.btn-danger:disabled { opacity: .45; cursor: default; }
 .phase { font-size: 1.15rem; font-weight: 800; margin: 0 0 10px; }
 .phase-playing { color: var(--good); }
 .phase-countdown { color: var(--accent); }

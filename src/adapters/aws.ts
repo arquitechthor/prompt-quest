@@ -1,6 +1,6 @@
 import { DynamoDBClient, ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { BatchWriteCommand, type BatchWriteCommandOutput, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { gzipSync } from 'node:zlib';
 import type { Replay } from '../engine/types';
@@ -66,6 +66,33 @@ export class DynamoStore implements Store {
       throw e;
     }
   }
+
+  /** Borra por tipo usando el GSI (solo claves) y BatchWrite de 25 en 25, reintentando lo no procesado. */
+  private async deleteType(type: string): Promise<number> {
+    const keys: { pk: string; sk: string }[] = [];
+    let start: Record<string, unknown> | undefined;
+    do {
+      const r = await ddb.send(new QueryCommand({
+        TableName: this.table, IndexName: 'byType', KeyConditionExpression: '#t = :t',
+        ExpressionAttributeNames: { '#t': 'type' }, ExpressionAttributeValues: { ':t': type },
+        ProjectionExpression: 'pk, sk', ExclusiveStartKey: start,
+      }));
+      for (const it of r.Items ?? []) keys.push({ pk: it.pk, sk: it.sk });
+      start = r.LastEvaluatedKey;
+    } while (start);
+    for (let i = 0; i < keys.length; i += 25) {
+      let pending: Record<string, unknown>[] | undefined = keys.slice(i, i + 25).map((Key) => ({ DeleteRequest: { Key } }));
+      for (let attempt = 0; pending?.length; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 100 * 2 ** Math.min(attempt, 5)));
+        const out: BatchWriteCommandOutput = await ddb.send(new BatchWriteCommand({ RequestItems: { [this.table]: pending } }));
+        pending = out.UnprocessedItems?.[this.table];
+      }
+    }
+    return keys.length;
+  }
+  async clear() {
+    return { agents: await this.deleteType('AGENT'), matches: await this.deleteType('MATCH') };
+  }
 }
 
 const s3 = new S3Client({});
@@ -78,6 +105,18 @@ export class S3ReplayStore implements ReplayStore {
     }));
   }
   url(matchId: string) { return `/replays/${matchId}.json`; }
+  async clear() {
+    let n = 0;
+    let token: string | undefined;
+    do {
+      const r = await s3.send(new ListObjectsV2Command({ Bucket: this.bucket, Prefix: 'replays/', ContinuationToken: token }));
+      const objs = (r.Contents ?? []).map((o) => ({ Key: o.Key! }));
+      if (objs.length) await s3.send(new DeleteObjectsCommand({ Bucket: this.bucket, Delete: { Objects: objs, Quiet: true } }));
+      n += objs.length;
+      token = r.NextContinuationToken;
+    } while (token);
+    return n;
+  }
 }
 
 const sqs = new SQSClient({});

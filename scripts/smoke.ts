@@ -1,5 +1,10 @@
 // Pruebas rápidas de las propiedades que sostienen la arquitectura. Uso: npm test
 import assert from 'node:assert/strict';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { FileReplayStore, FileStore, HeuristicCompiler, InProcessQueue } from '../src/adapters/local';
+import { ArenaService } from '../src/core/service';
 import { heuristicCompile } from '../src/engine/heuristic';
 import { sanitizePolicy } from '../src/engine/policy';
 import { makeBots } from '../src/engine/presets';
@@ -79,5 +84,30 @@ test('el prompt cambia el comportamiento (políticas distintas => resultados dis
   }
   assert.ok(diff > 25, `solo ${diff}/50 partidas cambiaron`);
 });
+
+{
+  // reinicio total: borra agentes, partidas y replays, pone el estado a cero y exige la palabra de confirmación
+  const dir = mkdtempSync(join(tmpdir(), 'pq-smoke-'));
+  const ai = new HeuristicCompiler(0);
+  const queue = new InProcessQueue();
+  const store = new FileStore(dir);
+  const svc = new ArenaService({ store, replays: new FileReplayStore(join(dir, 'replays')), queue, compiler: ai, narrator: ai });
+  const { agent } = await svc.createAgent({ name: 'Prueba', cls: 'ninja', el: 'air', prompt: 'Ataca al más débil y huye con poca salud' });
+  await svc.processCompile(agent.id, 1);
+  await svc.setAuto(true);
+  await svc.startMatch();
+  await assert.rejects(svc.reset('reiniciar'), /REINICIAR/);
+  assert.deepEqual(await svc.reset('REINICIAR'), { agents: 1, matches: 1, replays: 1 });
+  const s = await store.getState();
+  assert.equal(s.auto, false);
+  assert.equal(s.currentMatchId, null);
+  assert.equal(s.matchesPlayed + s.compileCount, 0);
+  assert.equal((await store.listAgents()).length, 0);
+  assert.equal(readdirSync(join(dir, 'replays')).length, 0);
+  assert.equal((await new FileStore(dir).listAgents()).length, 0, 'el borrado persiste en disco');
+  rmSync(dir, { recursive: true, force: true });
+  passed++;
+  console.log('  ✓ el reinicio total deja la arena vacía y exige confirmación');
+}
 
 console.log(`\n${passed} pruebas superadas`);

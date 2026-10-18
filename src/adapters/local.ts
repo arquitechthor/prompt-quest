@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { heuristicCompile } from '../engine/heuristic';
 import type { ClassId, Replay } from '../engine/types';
@@ -43,6 +43,13 @@ export class FileStore implements Store {
     this.save();
     return true;
   }
+  async clear() {
+    const n = { agents: this.agents.size, matches: this.matches.size };
+    this.agents.clear();
+    this.matches.clear();
+    this.save();
+    return n;
+  }
 }
 
 export class FileReplayStore implements ReplayStore {
@@ -51,6 +58,11 @@ export class FileReplayStore implements ReplayStore {
   }
   async put(r: Replay) { writeFileSync(join(this.dir, `${r.matchId}.json`), JSON.stringify(r)); }
   url(matchId: string) { return `/replays/${matchId}.json`; }
+  async clear() {
+    const files = readdirSync(this.dir).filter((f) => f.endsWith('.json'));
+    for (const f of files) rmSync(join(this.dir, f), { force: true });
+    return files.length;
+  }
 }
 
 /** En local "encolar" = procesar en segundo plano en el mismo proceso (simulando la latencia del LLM). */

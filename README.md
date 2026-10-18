@@ -17,7 +17,7 @@ npm run dev
 
 - Jugador (móvil): http://localhost:5173
 - Pantalla del público (TV del stand, sin controles): http://localhost:5173/#/arena
-- Consola de administración: http://localhost:5173/#/admin (clave en local: `local-admin`). Controla el modo automático, lanza partidas y monitoriza agentes, compilaciones y partidas
+- Consola de administración: http://localhost:5173/#/admin (clave en local: `local-admin`). Controla el modo automático, lanza partidas, monitoriza agentes, compilaciones y partidas, y permite un reinicio total de datos antes del evento (hay que escribir `REINICIAR`; borra agentes, partidas, replays y contadores)
 - Cómo se hizo (enlazada con el segundo QR de la pantalla): http://localhost:5173/como-se-hizo.html
 
 En local se usa el compilador heurístico de respaldo. Para usar Bedrock con tus credenciales: `COMPILER=bedrock npm run dev`.

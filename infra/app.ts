@@ -98,6 +98,9 @@ class PromptQuestStack extends cdk.Stack {
     table.grantReadWriteData(tickFn);
     queue.grantSendMessages(apiFn);
     dataBucket.grantPut(apiFn);
+    // reinicio total desde la consola de administración: listar y borrar replays
+    dataBucket.grantRead(apiFn, 'replays/*');
+    dataBucket.grantDelete(apiFn, 'replays/*');
 
     // clave de administración: solo la Lambda api puede leerla; nunca aparece en outputs ni variables de entorno
     const adminSecret = new secretsmanager.Secret(this, 'AdminKey', {

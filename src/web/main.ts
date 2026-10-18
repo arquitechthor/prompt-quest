@@ -145,9 +145,13 @@ class PlayerScreen {
   private renderForm(editing: boolean) {
     const a = this.agent;
     const d = editing && a ? { name: a.name, cls: a.cls, el: a.el, prompt: a.prompt } : this.draft;
+    // en edición el nombre no se puede cambiar, pero debe quedar claro qué agente se está mejorando
+    const who = (cls: ClassId, el: ElementId) =>
+      `${avatar(cls, el, 52)}<div><h2>${esc(a!.name)}</h2><small>${esc(avatarName(cls, el))} · estrategia v${a!.version} → v${a!.version + 1}</small></div>`;
     app.innerHTML = `
       <main class="phone">
         <header class="brand"><span class="logo">PROMPT QUEST</span><span class="tag">Agent Arena</span></header>
+        ${editing && a ? `<div class="ph report-agent" id="who">${who(d.cls, d.el)}</div>` : ''}
         ${editing ? `<h1>Mejora tu estrategia</h1><p class="lead">Cambia una sola cosa y comprueba si tu agente mejora. Así se evalúan los agentes de IA de verdad.</p>`
           : `<h1>Crea tu agente</h1><p class="lead">Tú escribes la estrategia. Una IA en AWS la convierte en el cerebro de tu agente. Luego compite solo.</p>`}
         <form id="f" autocomplete="off">
@@ -177,6 +181,7 @@ class PlayerScreen {
     const sync = () => {
       $('#pv').innerHTML = `${avatar(state.cls, state.el, 56)}<div><b>${esc(avatarName(state.cls, state.el))}</b><small>Especial: ${esc(CLASSES[state.cls].specialName)} · Debilidad: ${esc(CLASSES[state.cls].weakness)}</small></div>`;
       $('#el-hint').textContent = `${ELEMENTS[state.el].effect} · Fuego › Aire › Tierra › Agua › Fuego`;
+      if (editing && a) $('#who').innerHTML = who(state.cls, state.el);
       if (!editing) { this.draft = { ...state, name: (form.elements.namedItem('name') as HTMLInputElement).value, prompt: (form.elements.namedItem('prompt') as HTMLTextAreaElement).value }; store.set('pq.draft', this.draft); }
     };
     const pick = (id: string, key: 'cls' | 'el') =>
@@ -321,7 +326,8 @@ class PlayerScreen {
       app.innerHTML = `
         <main class="phone">
           <header class="brand"><span class="logo">PROMPT QUEST</span><span class="tag">Informe de partida</span></header>
-          <section class="place ${res.place === 1 ? 'gold' : ''}"><span class="big">${res.place}º</span><small>de ${replay.agents.length} agentes · ${res.score} puntos</small></section>
+          <div class="ph report-agent">${avatar(ag.cls, ag.el, 52)}<div><h2>${esc(ag.name)}</h2><small>${esc(avatarName(ag.cls, ag.el))} · estrategia v${a.history.find((h) => h.matchId === matchId)?.version ?? a.version}</small></div></div>
+          <section class="place ${res.place === 1 ? 'gold' : ''}"><span class="big">${res.place}º</span><small><b>${esc(ag.name)}</b> · de ${replay.agents.length} agentes · ${res.score} puntos</small></section>
           <div class="kpis">
             <div><b>${res.kills}</b><small>eliminaciones</small></div><div><b>${res.damageDealt}</b><small>daño infligido</small></div>
             <div><b>${res.items}</b><small>objetos</small></div><div><b>${res.survivedTurns}</b><small>turnos vivo</small></div>
@@ -587,6 +593,15 @@ class AdminScreen {
         <section class="admin-kpis" id="kpis"></section>
         <section class="panel"><h3>Agentes <small id="agents-count"></small></h3><div class="table-scroll"><table class="admin-table" id="agents"></table></div></section>
         <section class="panel"><h3>Últimas partidas</h3><div class="table-scroll"><table class="admin-table" id="matches"></table></div></section>
+        <section class="panel danger">
+          <h3>Reiniciar todos los datos</h3>
+          <p class="hint">Para dejar el stand limpio justo antes del evento: borra todos los agentes (los jugadores perderán el suyo), partidas, replays y clasificación, pone a cero los contadores y desactiva el modo automático. No se puede deshacer.</p>
+          <div class="danger-row">
+            <label class="fld" for="reset-word"><span>Escribe <b>REINICIAR</b> para confirmar</span>
+              <input id="reset-word" autocomplete="off" spellcheck="false"></label>
+            <button class="btn-danger" id="reset" type="button" disabled>Reiniciar datos</button>
+          </div>
+        </section>
         <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
       </main>`;
     $('#logout').onclick = () => {
@@ -606,6 +621,21 @@ class AdminScreen {
     $('#auto-on').onclick = () => act('/api/admin/auto', { on: true }, 'Modo automático activado');
     $('#auto-off').onclick = () => act('/api/admin/auto', { on: false }, 'Modo automático desactivado');
     $('#launch').onclick = () => act('/api/admin/match', {}, 'Partida lanzada: empieza en unos segundos');
+    const word = $('#reset-word') as HTMLInputElement;
+    const reset = $('#reset') as HTMLButtonElement;
+    word.oninput = () => (reset.disabled = word.value.trim() !== 'REINICIAR');
+    reset.onclick = async () => {
+      reset.disabled = true;
+      try {
+        const r = await this.call<{ agents: number; matches: number; replays: number }>('/api/admin/reset', { method: 'POST', body: JSON.stringify({ confirm: word.value.trim() }) });
+        word.value = '';
+        this.toast(`Datos reiniciados: ${r.agents} agentes, ${r.matches} partidas y ${r.replays} replays borrados`);
+        await this.poll();
+      } catch (e) {
+        this.toast((e as Error).message, true);
+        reset.disabled = word.value.trim() !== 'REINICIAR';
+      }
+    };
     this.poll();
     this.timer = window.setInterval(() => this.poll(), 3000);
   }

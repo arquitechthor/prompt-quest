@@ -60,6 +60,7 @@ export async function handleHttp(svc: ArenaService, req: HttpRequest, adminKey: 
       if (method === 'POST' && path === '/api/admin/match') return json(200, { match: await svc.startMatch({ allowBotOnly: true }) });
       if (method === 'POST' && path === '/api/admin/auto') return json(200, await svc.setAuto(body.on === true));
       if (method === 'POST' && path === '/api/admin/tick') return json(200, await svc.tick());
+      if (method === 'POST' && path === '/api/admin/reset') return json(200, await svc.reset(body.confirm));
     }
     return json(404, { error: 'No encontrado' });
   } catch (err) {

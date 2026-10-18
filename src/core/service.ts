@@ -18,6 +18,8 @@ export const LIMITS = {
   resultsMs: 14000,
 };
 
+export const RESET_WORD = 'REINICIAR';
+
 const BAD_NAME = /(puta|puto|mierda|polla|co[nñ]o|joder|cabr[oó]n|maric|nazi|hitler|fuck|shit|bitch|admin)/i;
 
 function statsOf(history: AgentRecord['history']) {
@@ -215,6 +217,18 @@ export class ArenaService {
       s.auto = on;
     });
     return { auto: on };
+  }
+
+  /** Reinicio total antes del evento: apaga el modo automático, pone a cero los contadores y borra agentes, partidas y replays. */
+  async reset(confirm: unknown) {
+    if (confirm !== RESET_WORD) throw new HttpError(400, `Escribe ${RESET_WORD} para confirmar el reinicio`);
+    // primero el estado: con auto apagado y sin partida actual, el tick no lanza nada mientras se borra
+    await this.mutateState((s) => {
+      Object.assign(s, { currentMatchId: null, auto: false, matchesPlayed: 0, injectionBlocked: 0, compileCount: 0, bedrockCompiles: 0, fallbackCompiles: 0 });
+    });
+    const { agents, matches } = await this.d.store.clear();
+    const replays = await this.d.replays.clear();
+    return { agents, matches, replays };
   }
 
   async getMatch(id: string) {

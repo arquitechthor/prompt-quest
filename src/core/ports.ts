@@ -78,11 +78,15 @@ export interface Store {
   getState(): Promise<ArenaState>;
   /** Escritura condicional (concurrencia optimista): falla si la versión ha cambiado. */
   putState(s: ArenaState, expectedVersion: number): Promise<boolean>;
+  /** Reinicio total: borra todos los agentes y partidas (el estado se reinicia aparte, con putState). */
+  clear(): Promise<{ agents: number; matches: number }>;
 }
 
 export interface ReplayStore {
   put(replay: Replay): Promise<void>;
   url(matchId: string): string;
+  /** Reinicio total: borra todos los replays y devuelve cuántos había. */
+  clear(): Promise<number>;
 }
 
 export interface CompileQueue {
