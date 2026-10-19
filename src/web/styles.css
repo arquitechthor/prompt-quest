@@ -35,7 +35,7 @@ input, textarea { width: 100%; background: var(--bg2); border: 1px solid var(--l
 input:focus, textarea:focus { outline: 2px solid var(--accent2); border-color: transparent; }
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .card { background: var(--bg2); border: 2px solid var(--line); border-radius: var(--radius); padding: 10px; color: var(--text); text-align: left; display: grid; gap: 2px; }
-.card .g { font-size: 1.6rem; }
+.card .g { line-height: 0; }
 .card small { color: var(--muted); font-size: .78rem; }
 .card .stats { font-style: normal; font-size: .72rem; color: var(--muted); }
 .card.on { border-color: var(--accent); background: #221f1a; }
@@ -45,7 +45,9 @@ input:focus, textarea:focus { outline: 2px solid var(--accent2); border-color: t
 .hint { display: block; color: var(--muted); font-size: .8rem; margin-top: 6px; }
 .preview { display: flex; gap: 12px; align-items: center; background: var(--bg2); border: 1px dashed var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 16px; }
 .preview small { display: block; color: var(--muted); font-size: .8rem; }
-.avatar { display: inline-grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--el) 65%, white), var(--el) 60%, color-mix(in srgb, var(--el) 60%, black)); box-shadow: 0 0 0 2px rgba(0,0,0,.4), 0 0 14px color-mix(in srgb, var(--el) 50%, transparent); flex: none; line-height: 1; }
+.avatar { display: inline-grid; place-items: center; border-radius: 22%; background: radial-gradient(circle at 50% 85%, color-mix(in srgb, var(--el) 45%, #141a27) 0 35%, #141a27 70%); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--el) 70%, black), 0 0 12px color-mix(in srgb, var(--el) 35%, transparent); flex: none; line-height: 1; overflow: hidden; }
+img.px { image-rendering: crisp-edges; image-rendering: pixelated; display: inline-block; vertical-align: middle; }
+.feed img.px { margin: -3px 2px 0 0; }
 .examples { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
 .ex { background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 5px 10px; font-size: .8rem; }
 .cta { width: 100%; border: 0; border-radius: var(--radius); padding: 15px; font-weight: 800; font-size: 1.05rem; color: #1b1405; background: linear-gradient(90deg, #ffcc33, #ff9f43); box-shadow: 0 6px 24px rgba(255, 180, 50, .25); margin-top: 6px; }
@@ -91,7 +93,7 @@ blockquote { margin: 16px 0 0; padding: 12px 14px; border-left: 3px solid var(--
 .canvas-wrap canvas, .map canvas { width: 100%; height: 100%; display: block; }
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; background: rgba(8, 10, 16, .72); text-align: center; gap: 6px; }
 .overlay[hidden] { display: none; }
-.count { font-family: Bungee, sans-serif; font-size: 5rem; color: var(--accent); line-height: 1; }
+.count { font-family: "Press Start 2P", Bungee, monospace; font-size: 5rem; color: var(--accent); line-height: 1; }
 .me-status { margin-top: 10px; }
 .hpbar { height: 12px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .hpbar i { display: block; height: 100%; background: linear-gradient(90deg, #22c55e, #86efac); transition: width .3s; }
@@ -119,6 +121,8 @@ body.stage-mode { overflow: hidden; }
 .chip-s { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
 .board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 30%); gap: 14px; min-height: 0; }
 .map { position: relative; min-height: 0; background: var(--bg2); border-radius: var(--radius); overflow: hidden; }
+/* filtro CRT solo en la pantalla del stand: líneas de barrido y viñeta */
+.map::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.45) 100%); }
 .side { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
 .panel.grow { flex: 1; min-height: 0; overflow: hidden; }

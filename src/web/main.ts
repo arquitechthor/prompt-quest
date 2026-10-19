@@ -3,7 +3,9 @@ import { ruleText } from '../engine/policy';
 import { CLASSES, ELEMENTS } from '../engine/rules';
 import { EXAMPLE_PROMPTS } from '../engine/presets';
 import type { ClassId, ElementId, Policy, Replay } from '../engine/types';
-import { ArenaRenderer, CLASS_GLYPH, EL_GLYPH } from './render';
+import { ArenaRenderer, EL_GLYPH } from './render';
+import { CuePlayer, play, unlockAudio } from './sfx';
+import { spriteImg } from './sprites';
 import { feedLines, lessons } from './report';
 
 // ----------------------------------------------------------------------------- utilidades
@@ -56,7 +58,7 @@ function loadReplay(url: string): Promise<Replay> {
   return replayCache.get(url)!;
 }
 const avatar = (cls: ClassId, el: ElementId, size = 44) =>
-  `<span class="avatar" style="--el:${ELEMENTS[el].color};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.52)}px">${CLASS_GLYPH[cls]}</span>`;
+  `<span class="avatar" style="--el:${ELEMENTS[el].color};width:${size}px;height:${size}px">${spriteImg(cls, el, Math.round(size * 0.8))}</span>`;
 const avatarName = (cls: ClassId, el: ElementId) => `${CLASSES[cls].name} de ${ELEMENTS[el].name}`;
 
 // ----------------------------------------------------------------------------- jugador (móvil)
@@ -159,7 +161,7 @@ class PlayerScreen {
           <div class="fld"><span>Personaje</span><div class="cards" id="cls">
             ${(Object.keys(CLASSES) as ClassId[]).map((c) => `
               <button type="button" class="card ${d.cls === c ? 'on' : ''}" data-v="${c}">
-                <span class="g">${CLASS_GLYPH[c]}</span><b>${CLASSES[c].name}</b><small>${esc(CLASSES[c].passive.split(':')[0])}</small>
+                <span class="g">${spriteImg(c, d.el, 40)}</span><b>${CLASSES[c].name}</b><small>${esc(CLASSES[c].passive.split(':')[0])}</small>
                 <i class="stats">❤ ${CLASSES[c].hp} · ⚔ ${CLASSES[c].atk} · 🎯 ${CLASSES[c].range}</i>
               </button>`).join('')}
           </div></div>
@@ -180,6 +182,7 @@ class PlayerScreen {
     const state = { ...d };
     const sync = () => {
       $('#pv').innerHTML = `${avatar(state.cls, state.el, 56)}<div><b>${esc(avatarName(state.cls, state.el))}</b><small>Especial: ${esc(CLASSES[state.cls].specialName)} · Debilidad: ${esc(CLASSES[state.cls].weakness)}</small></div>`;
+      $('#cls').querySelectorAll<HTMLElement>('button').forEach((b) => { b.querySelector('.g')!.innerHTML = spriteImg(b.dataset.v as ClassId, state.el, 40); });
       $('#el-hint').textContent = `${ELEMENTS[state.el].effect} · Fuego › Aire › Tierra › Agua › Fuego`;
       if (editing && a) $('#who').innerHTML = who(state.cls, state.el);
       if (!editing) { this.draft = { ...state, name: (form.elements.namedItem('name') as HTMLInputElement).value, prompt: (form.elements.namedItem('prompt') as HTMLTextAreaElement).value }; store.set('pq.draft', this.draft); }
@@ -371,6 +374,8 @@ class ArenaScreen {
   private lastFrame = -1;
   private timer = 0;
   private raf = 0;
+  private cues = new CuePlayer();
+  private countdown = 0;
 
   start() {
     const joinUrl = `${location.origin}/`;
@@ -407,6 +412,9 @@ class ArenaScreen {
         </footer>
       </main>`;
     window.addEventListener('resize', () => this.renderer?.resize());
+    // Sin controles visibles: el primer clic o tecla del operador desbloquea el sonido.
+    unlockAudio();
+    for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, unlockAudio);
     this.poll();
     this.timer = window.setInterval(() => this.poll(), 2000);
     this.loop();
@@ -451,6 +459,13 @@ class ArenaScreen {
     const r = this.replay;
     const f = (now() - cur.startAt) / cur.turnMs;
     this.renderer.draw(Math.max(0, f));
+    this.cues.update(cur.id, this.renderer.cues, f);
+    const secs = f < 0 ? Math.ceil((-f * cur.turnMs) / 1000) : 0;
+    if (secs !== this.countdown) {
+      if (secs > 0 && secs <= 3) play('beep');
+      else if (secs === 0 && this.countdown > 0 && f < 0.5) play('go');
+      this.countdown = secs;
+    }
     const fi = Math.floor(f) + 1;
     const alive = r.frames[Math.max(0, Math.min(r.frames.length - 1, fi))].agents.filter((s) => s[4]).length;
     $('#info').innerHTML = `<b>Partida ${esc(cur.id.slice(-4))}</b> · ${r.agents.filter((x) => !x.isBot).length} humanos + ${r.agents.filter((x) => x.isBot).length} bots<br><span class="big">Turno ${Math.max(0, Math.min(r.turns, fi))}/${r.turns}</span> · <span class="big">${alive}</span> en pie`;

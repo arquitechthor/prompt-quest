@@ -1,7 +1,7 @@
 import { ACTION_ES } from '../engine/policy';
 import { ITEMS } from '../engine/rules';
 import type { AgentResult, Replay } from '../engine/types';
-import { CLASS_GLYPH, ITEM_GLYPH } from './render';
+import { itemImg, spriteImg } from './sprites';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -10,7 +10,7 @@ export function feedLines(r: Replay, frameIdx: number): { html: string; kind: st
   const f = r.frames[frameIdx];
   if (!f) return [];
   const name = (i: number) => esc(r.agents[i].name.replace(/^🤖 /, ''));
-  const glyph = (i: number) => CLASS_GLYPH[r.agents[i].cls];
+  const glyph = (i: number) => spriteImg(r.agents[i].cls, r.agents[i].el, 20);
   const reason = (i: number) => {
     const d = f.decisions.find((x) => x[0] === i);
     if (!d) return '';
@@ -27,7 +27,7 @@ export function feedLines(r: Replay, frameIdx: number): { html: string; kind: st
       const how = e.cause === 'zone' ? 'cae fuera de la zona' : e.cause === 'burn' ? `arde hasta caer${e.by !== null ? ` (fuego de ${name(e.by)})` : ''}` : `es eliminado por <b>${name(e.by!)}</b>`;
       out.push({ kind: 'death', html: `💀 <b>${name(e.a)}</b> ${how}` });
     } else if (e.k === 'pickup' && (e.item === 'treasure' || e.item === 'orb' || e.item === 'sword')) {
-      out.push({ kind: 'pickup', html: `${ITEM_GLYPH[e.item]} <b>${name(e.a)}</b> recoge ${ITEMS[e.item].name.toLowerCase()} <span class="why">«${esc(reason(e.a))}»</span>` });
+      out.push({ kind: 'pickup', html: `${itemImg(e.item, 20)} <b>${name(e.a)}</b> recoge ${ITEMS[e.item].name.toLowerCase()} <span class="why">«${esc(reason(e.a))}»</span>` });
     } else if (e.k === 'dash') {
       const d = f.decisions.find((x) => x[0] === e.a);
       if (d && d[2] === 'flee') out.push({ kind: 'special', html: `💨 <b>${name(e.a)}</b> escapa con Sombra fugaz <span class="why">«${esc(reason(e.a))}»</span>` });
