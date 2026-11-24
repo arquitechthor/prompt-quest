@@ -6,10 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Prompt Quest: Agent Arena — event game where each attendee writes a natural-language strategy, an LLM (Claude on Amazon Bedrock) compiles it into a structured policy, and a deterministic engine runs up to 16 agents per match, shown live on a stand screen and on phones. Code, UI text and docs are in Spanish; keep new user-facing text in Spanish. Original idea: `idea/prompt_quest_agent_arena.md`. Event proposal page: `docs/propuesta.html` (published as a claude.ai artifact).
 
-## Status
-
-Archived (November 2026). The event this game was built for has passed; the project stays in the portfolio as an idea and working prototype, not as something to be implemented. Do not add features; only touch it for documentation fixes or if the user explicitly revives it. The pre-event capacity analysis is in `docs/hallazgos-y-plan-operacion.md`.
-
 ## Commands
 
 The dev machine has Node 24 + npm only (no admin rights, no AWS CLI, Python or Docker). Everything runs through npm/npx.
