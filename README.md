@@ -2,6 +2,11 @@
 
 Arena de agentes autónomos cuyo comportamiento lo dicta un prompt. Cada participante escribe una estrategia en lenguaje natural; un LLM en Amazon Bedrock la **compila** a una política estructurada; un motor determinista la ejecuta en partidas de hasta 16 agentes que se ven en directo en una pantalla grande y en los móviles.
 
+> **Proyecto archivado (noviembre de 2026).** Prompt Quest se diseñó como juego para el stand de un evento de
+> tecnología. El evento ya pasó y el proyecto no se va a implementar ni a mantener: queda como idea y prototipo de
+> portafolio. El código funciona en local y se puede desplegar siguiendo este README, pero no recibirá cambios. El
+> análisis de capacidad que se hizo antes del evento está en [docs/hallazgos-y-plan-operacion.md](docs/hallazgos-y-plan-operacion.md).
+
 > Idea original: [idea/prompt_quest_agent_arena.md](idea/prompt_quest_agent_arena.md) · Propuesta para el evento: [docs/propuesta.html](docs/propuesta.html)
 
 ## Desarrollo asistido por IA
